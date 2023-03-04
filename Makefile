@@ -6,7 +6,7 @@ LD = $(TOOLS_ARM)-ld
 OD = $(TOOLS_ARM)-objdump
 SZ = $(TOOLS_ARM)-size
 
-ASFLAGS = -mcpu=cortex-m0 -mthumb --warn -g
+ASFLAGS = -I src -mcpu=cortex-m0 -mthumb --warn -g
 LDFLAGS = -T stm32f072rbt6.ld -nostdlib
 
 SRCS = $(wildcard src/*.s)

@@ -3,13 +3,15 @@
 .fpu softvfp
 .thumb
 
+.include "defs.i"
+
 .section .vector_table,"a",%progbits
 Vector_Table:
-    // exceptions
-    .word 0x20004000                        // stack init address (end of RAM)
-    .word Reset_Handler+1
+    .word SRAM_END                          // stack init address
+    .word Reset_Handler+1                   // our entry point
+    // Cortex-M0 exceptions
     .word Default_Handler+1                 // NMI_Handler
-    .word HardFault_Handler+1
+    .word HardFault_Handler+1               // what the [brain]fuck!?
     .word 0
     .word 0
     .word 0
@@ -22,7 +24,7 @@ Vector_Table:
     .word 0
     .word Default_Handler+1                 // PendSV_Handler
     .word Default_Handler+1                 // SysTick_Handler
-    // interrupts
+    // STM32F0 interrupts
     .word Default_IRQHandler+1              // WWDG_IRQHandler
     .word Default_IRQHandler+1              // PVD_VDDIO2_IRQHandler
     .word Default_IRQHandler+1              // RTC_IRQHandler
@@ -66,7 +68,7 @@ HardFault_Handler:
     b .
 
 Reset_Handler:
-    movs r0, #0
+    // SP = MSP = SRAM_END (set by H/W)
     bl GPIO_Init
     bl UART_Init
     b Main_Loop
