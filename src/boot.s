@@ -71,4 +71,4 @@ Reset_Handler:
     // SP = MSP = SRAM_END (set by H/W)
     bl GPIO_Init
     bl UART_Init
-    b Main_Loop
+    b Main_Start
