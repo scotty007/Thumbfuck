@@ -2,3 +2,4 @@
 *.elf
 *.lst
 tools/
+.gdb_history

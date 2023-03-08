@@ -19,7 +19,7 @@ Main_Loop:
     // check for UART RX byte
     ldr  r0, [r3]
     tst  r0, r4
-    beq  handle_led  // nothing rececved
+    beq  sim_busy  // nothing rececved
     // byte received, echo back
     ldr  r1, [r6]  // resets USART2_ISR.RXNE
 wait_txe_loop:
@@ -29,6 +29,17 @@ wait_txe_loop:
     beq  wait_txe_loop
     // ready to send
     str  r1, [r7]
+
+sim_busy:
+    /* SYSCLK = 8MHz */
+//    ldr  r0, =164  // works fine (w/o button presses)
+//    ldr  r0, =165  // most RX bytes lost, UART locks and needs reset
+    /* SYSCLK = 48MHZ */
+    ldr  r0, =1029  // works fine (w/o button presses)
+//    ldr  r0, =1030  // most RX bytes lost, UART locks and needs reset
+busy_loop:
+    subs r0, #1
+    bne  busy_loop
 
 handle_led:
     GPIO_GetButton

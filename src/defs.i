@@ -9,7 +9,7 @@
 /*
  * system clock
  */
-.equ    SYSCLK                  , 8000000                               // HSI @ 8MHz
+.equ    SYSCLK                  , 48000000                              // PLL @ 48MHz (8MHz HSI / 2 * 12)
 
 /*
  * SRAM mapping
@@ -34,8 +34,12 @@
 .equ    USART2_TDR              , USART2_BASE + 0x28                    // USART2 transmit data register
 // AHB peripherals
 .equ    RCC_BASE                , AHBPERIPH_BASE + 0x00001000
+.equ    RCC_CR                  , RCC_BASE + 0x00                       // RCC clock control register
+.equ    RCC_CFGR                , RCC_BASE + 0x04                       // RCC clock configuration register
 .equ    RCC_AHBENR              , RCC_BASE + 0x14                       // RCC AHB peripheral clock register
 .equ    RCC_APB1ENR             , RCC_BASE + 0x1c                       // RCC APB1 peripheral clock enable register
+.equ    FLASH_BASE              , AHBPERIPH_BASE + 0x00002000
+.equ    FLASH_ACR               , FLASH_BASE + 0x00                     // FLASH access control register
 // AHB2 peripherals
 .equ    GPIOA_BASE              , AHB2PERIPH_BASE + 0x00000000
 .equ    GPIOA_MODER             , GPIOA_BASE + 0x00                     // GPIOA port mode register
@@ -48,9 +52,17 @@
  * peripheral registers bits
  */
 // RCC
+.equ    RCC_CR.PLLON            , 0b1 << 24                             // PLL enable
+.equ    RCC_CR.PLLRDY           , 0b1 << 25                             // PLL clock ready flag
+.equ    RCC_CFGR.SW_PLL         , 0b10 << 0                             // PLL selected as system clock
+.equ    RCC_CFGR.SWS_PLL        , 0b10 << 2                             // PLL used as system clock
+.equ    RCC_CFGR.PLLMUL_12      , 0b1010 << 18                          // PLL multiplication factor 12
 .equ    RCC_AHBENR.IOPAEN       , 0b1 << 17                             // GPIOA port clock enable
 .equ    RCC_AHBENR.IOPCEN       , 0b1 << 19                             // GPIOC port clock enable
 .equ    RCC_APB1ENR.USART2EN    , 0b1 << 17                             // USART2 clock enable
+// FLASH
+.equ    FLASH_ACR.LATENCY_ONE   , 0b001 << 0                            // one wait state access latency
+.equ    FLASH_ACR.PRFTBE        , 0b1 << 4                              // prefetch buffer enable
 // GPIOx
 .equ    GPIOx_MODER.MODER2_AF   , 0b10 << (2 * 2)                       // Px2 pin alternate function mode
 .equ    GPIOx_MODER.MODER3_AF   , 0b10 << (3 * 2)                       // Px3 pin alternate function mode
