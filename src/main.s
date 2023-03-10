@@ -4,49 +4,71 @@
 .thumb
 
 .include "defs.i"
-.include "gpio.i"
+.include "gpio.i"  // used regs: r0, r1
+.include "uart.i"  // used regs: r0, r1, r3-r7
 
 .global Main_Start
 
+.equ PROGRAM_START , SRAM_BASE
+
 Main_Start:
-    ldr  r3, =USART2_ISR
-    ldr  r4, =USARTx_ISR.RXNE
-    ldr  r5, =USARTx_ISR.TXE
-    ldr  r6, =USART2_RDR
-    ldr  r7, =USART2_TDR
+    ldr  r2, =PROGRAM_START  // reset PP
+    mov  r12, r2  // set end-of-program (start-of-data) address
+    UART_LoadRegs
 
-Main_Loop:
-    // check for UART RX byte
-    ldr  r0, [r3]
-    tst  r0, r4
-    beq  sim_busy  // nothing rececved
-    // byte received, echo back
-    ldr  r1, [r6]  // resets USART2_ISR.RXNE
-wait_txe_loop:
-    // check TX ready state
-    ldr  r0, [r3]
-    tst  r0, r5
-    beq  wait_txe_loop
-    // ready to send
-    str  r1, [r7]
+Main_prompt:
+    movs r0, #'\n'
+    UART_WaitWrite prompt_1
+    movs r0, #'?'
+    UART_WaitWrite prompt_2
 
-sim_busy:
-    /* SYSCLK = 8MHz */
-//    ldr  r0, =164  // works fine (w/o button presses)
-//    ldr  r0, =165  // most RX bytes lost, UART locks and needs reset
-    /* SYSCLK = 48MHZ */
-    ldr  r0, =1029  // works fine (w/o button presses)
-//    ldr  r0, =1030  // most RX bytes lost, UART locks and needs reset
-busy_loop:
-    subs r0, #1
-    bne  busy_loop
+Main_loop:
+    UART_CheckRead Main_loop
+    // check for valid command
+    cmp  r0, #'l'
+    beq  Load_Program
+    cmp  r0, #'e'
+    beq  Exec_program
+    // not a valid command, ignore
+    b    Main_loop
 
-handle_led:
+Load_Program:
+    UART_WaitWrite cmd_load  // r0='l'
+    ldr  r2, =PROGRAM_START  // reset PP
+Load_loop:
+    // check button
     GPIO_GetButton
-    beq  led_on
-    led_off:
-        GPIO_SetLedOff
-        b    Main_Loop
-    led_on:
-        GPIO_SetLedOn
-        b    Main_Loop
+    beq  Load_done  // end loading
+    UART_CheckRead Load_loop
+    // check for Brainfuck opcode
+    cmp  r0, #'+'
+    beq  Load_opcode
+    cmp  r0, #'-'
+    beq  Load_opcode
+    cmp  r0, #'>'
+    beq  Load_opcode
+    cmp  r0, #'<'
+    beq  Load_opcode
+    cmp  r0, #'['
+    beq  Load_opcode
+    cmp  r0, #']'
+    beq  Load_opcode
+    cmp  r0, #'.'
+    beq  Load_opcode
+    cmp  r0, #','
+    beq  Load_opcode
+    // not an opcode, ignore
+    b    Load_loop
+Load_opcode:
+    // TODO: check max program size
+    stm  r2!, {r0}  // PM[PP++] := opcode
+    b    Load_loop
+Load_done:
+    mov  r12, r2  // set end-of-program (start-of-data) address
+    ldr  r2, =PROGRAM_START  // reset PP
+    // TODO: reset DP
+    b    Main_prompt  // back to prompt
+
+Exec_program:
+    UART_WaitWrite cmd_exec  // r0='e'
+    b    Main_prompt

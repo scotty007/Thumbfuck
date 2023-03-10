@@ -5,9 +5,9 @@
 
 .include "defs.i"
 
-.equ UART_BAUD , 115200
-
 .global UART_Init
+
+.equ UART_BAUD , 115200
 
 UART_Init:
     // RCC_APB1ENR: enable USART2 clock

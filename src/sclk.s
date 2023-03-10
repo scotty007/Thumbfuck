@@ -48,4 +48,4 @@ SCLK_Init:
         tst  r2, r1
         beq  wait_pll_selected
 
-    bx lr
+    bx   lr
