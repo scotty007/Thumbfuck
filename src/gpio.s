@@ -21,16 +21,16 @@ GPIO_Init:
     ldr  r2, [r0]
     orrs r2, r1
     str  r2, [r0]
-    // GPIOA_OTYPER  = 0x00000000 -> PA2/PA5: push-pull
-    // GPIOA_OSPEEDR = 0x0C000000 -> PA2/PA5: low speed
-    // GPIOA_PUPDR   = 0x24000000 -> PA2/PA3/PA5: no pull-up, no pull-down
+    // GPIOA_OTYPER  == 0x00000000 -> PA2/PA5: push-pull
+    // GPIOA_OSPEEDR == 0x0C000000 -> PA2/PA5: low speed
+    // GPIOA_PUPDR   == 0x24000000 -> PA2/PA3/PA5: no pull-up, no pull-down
     // GPIOx_AFRL: set PA2/PA3 alternate function to AF1 (USART2_TX/USART2_RX)
     ldr  r1, =(GPIOx_AFRL.AFSEL2_AF1 | GPIOx_AFRL.AFSEL3_AF1)
     ldr  r2, [r0, #(GPIOA_AFRL - GPIOA_MODER)]
     orrs r2, r1
     str  r2, [r0, #(GPIOA_AFRL - GPIOA_MODER)]
 
-    // GPIOC_MODER = 0x00000000 -> PC13: input mode
-    // GPIOC_PUPDR = 0x00000000 -> PC13: no pull-up, no pull-down
+    // GPIOC_MODER == 0x00000000 -> PC13: input mode
+    // GPIOC_PUPDR == 0x00000000 -> PC13: no pull-up, no pull-down
 
     bx lr

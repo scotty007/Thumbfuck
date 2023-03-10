@@ -9,10 +9,11 @@
 
 .global Main_Start
 
-.equ PROGRAM_START , SRAM_BASE
+.equ PROGMEM_START , SRAM_BASE
+.equ DATAMEM_END   , SRAM_END
 
 Main_Start:
-    ldr  r2, =PROGRAM_START  // reset PP
+    ldr  r2, =PROGMEM_START  // reset PP
     mov  r12, r2  // set end-of-program (start-of-data) address
     UART_LoadRegs
 
@@ -33,8 +34,8 @@ Main_loop:
     b    Main_loop
 
 Load_Program:
-    UART_WaitWrite cmd_load  // r0='l'
-    ldr  r2, =PROGRAM_START  // reset PP
+    UART_WaitWrite cmd_load  // r0 == 'l'
+    ldr  r2, =PROGMEM_START  // reset PP
 Load_loop:
     // check button
     GPIO_GetButton
@@ -61,14 +62,24 @@ Load_loop:
     b    Load_loop
 Load_opcode:
     // TODO: check max program size
-    stm  r2!, {r0}  // PM[PP++] := opcode
+    stm  r2!, {r0}  // PM[PP++] = opcode
     b    Load_loop
 Load_done:
     mov  r12, r2  // set end-of-program (start-of-data) address
-    ldr  r2, =PROGRAM_START  // reset PP
+
+Reset_Program:
+    // clear DM
+    movs r0, #0x00
+    ldr  r1, =DATAMEM_END
+    mov  r2, r12  // start-of-data address
+    clear_dm_loop:
+        stm  r2!, {r0}  // DM[r2++] = 0x00
+        cmp  r2, r1
+        bne  clear_dm_loop
+    ldr  r2, =PROGMEM_START  // reset PP
     // TODO: reset DP
     b    Main_prompt  // back to prompt
 
 Exec_program:
-    UART_WaitWrite cmd_exec  // r0='e'
+    UART_WaitWrite cmd_exec  // r0 == 'e'
     b    Main_prompt

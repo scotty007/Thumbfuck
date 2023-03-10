@@ -68,7 +68,7 @@ HardFault_Handler:
     b .
 
 Reset_Handler:
-    // SP = MSP = SRAM_END (set by H/W)
+    // SP == MSP == SRAM_END (set by H/W)
     bl SCLK_Init  // pedal to the metal!
     bl GPIO_Init
     bl UART_Init

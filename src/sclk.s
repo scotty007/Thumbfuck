@@ -15,7 +15,7 @@ SCLK_Init:
     orrs r2, r1
     str  r2, [r0]
 
-    // RCC_CFGR.PLLSRC = 0b00 -> HSI/2 selected as PLL input (PREDIV forced to 2)
+    // RCC_CFGR.PLLSRC == 0b00 -> HSI/2 selected as PLL input (PREDIV forced to 2)
     // RCC_CFGR: set PLL multiplication factor to 12 (8MHz HSI / 2 * 12 -> 48MHz)
     ldr  r0, =RCC_CFGR
     ldr  r1, =RCC_CFGR.PLLMUL_12

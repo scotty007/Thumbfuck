@@ -16,8 +16,8 @@ UART_Init:
     ldr  r2, [r0]
     orrs r2, r1
     str  r2, [r0]
-    // RCC_CR2.USART2SW = 0b00 -> PCLK selected as USART2 clock source
-    // RCC_CFGR.HPRE = 0b0000, RCC_CFGR.PPRE = 0b000 -> PCLK = SYSCLK
+    // RCC_CR2.USART2SW == 0b00 -> PCLK selected as USART2 clock source
+    // RCC_CFGR.HPRE == 0b0000, RCC_CFGR.PPRE == 0b000 -> PCLK = SYSCLK
 
     // USART2_BRR: set USARTDIV for UART_BAUD
     ldr  r0, =USART2_BRR
@@ -29,9 +29,9 @@ UART_Init:
     ldr  r2, [r0]
     orrs r2, r1
     str  r2, [r0]
-    // USART_CR1.M     = 0b00 -> 1 start bit, 8 data bits
-    // USART_CR1.OVER8 = 0b0  -> oversampling by 16
-    // USART_CR1.PCE   = 0b0  -> parity disabled
-    // USART_CR2.STOP  = 0b00 -> 1 stop bit
+    // USART_CR1.M     == 0b00 -> 1 start bit, 8 data bits
+    // USART_CR1.OVER8 == 0b0  -> oversampling by 16
+    // USART_CR1.PCE   == 0b0  -> parity disabled
+    // USART_CR2.STOP  == 0b00 -> 1 stop bit
 
-    bx lr
+    bx   lr

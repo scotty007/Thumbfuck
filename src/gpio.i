@@ -2,7 +2,7 @@
     ldr  r0, =GPIOC_IDR
     ldr  r0, [r0]
     ldr  r1, =GPIOx_IDR.IDR13
-    tst  r0, r1  // Z:=1 if button pressed (PC13 @ low level)
+    tst  r0, r1  // Z=1 if button pressed (PC13 @ low level)
 .endm
 
 .macro GPIO_SetLedOn
