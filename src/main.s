@@ -14,72 +14,146 @@
 
 Main_Start:
     ldr  r2, =PROGMEM_START  // reset PP
-    mov  r12, r2  // set end-of-program (start-of-data) address
+    mov  r12, r2  // reset end-of-program (start-of-data) address
     UART_LoadRegs
-
 Main_prompt:
     movs r0, #'\n'
     UART_WaitWrite prompt_1
     movs r0, #'?'
     UART_WaitWrite prompt_2
-
-Main_loop:
-    UART_CheckRead Main_loop
+main_loop:
+    UART_CheckRead main_loop
     // check for valid command
     cmp  r0, #'l'
-    beq  Load_Program
+    beq  Load_program
     cmp  r0, #'e'
-    beq  Exec_Program
+    beq  Exec_program
     // not a valid command, ignore
-    b    Main_loop
+    b    main_loop
 
-Load_Program:
+Load_program:
     UART_WaitWrite cmd_load  // r0 == 'l'
     ldr  r2, =PROGMEM_START  // reset PP
-Load_loop:
+load_loop:
     // check button
     GPIO_GetButton
-    beq  Load_done  // end loading
-    UART_CheckRead Load_loop
+    beq  load_done  // end loading
+    UART_CheckRead load_loop
     // check for Brainfuck opcode
     cmp  r0, #'+'
-    beq  Load_opcode
+    beq  load_dm_inc
     cmp  r0, #'-'
-    beq  Load_opcode
+    beq  load_dm_dec
     cmp  r0, #'>'
-    beq  Load_opcode
+    beq  load_dp_inc
     cmp  r0, #'<'
-    beq  Load_opcode
+    beq  load_dp_dec
     cmp  r0, #'['
-    beq  Load_opcode
+    beq  load_pp_jfz
     cmp  r0, #']'
-    beq  Load_opcode
+    beq  load_pp_jbn
     cmp  r0, #'.'
-    beq  Load_opcode
+    beq  load_dm_out
     cmp  r0, #','
-    beq  Load_opcode
+    beq  load_dm_in
     // not an opcode, ignore
-    b    Load_loop
-Load_opcode:
+    b    load_loop
+load_dm_inc:
+    adr  r0, Exec_DM_INC
+    b    load_opcode
+load_dm_dec:
+    adr  r0, Exec_DM_DEC
+    b    load_opcode
+load_dp_inc:
+    adr  r0, Exec_DP_INC
+    b    load_opcode
+load_dp_dec:
+    adr  r0, Exec_DP_DEC
+    b    load_opcode
+load_pp_jfz:
+    adr  r0, Exec_PP_JFZ
+    b    load_opcode
+load_pp_jbn:
+    adr  r0, Exec_PP_JBN
+    b    load_opcode
+load_dm_out:
+    adr  r0, Exec_DM_OUT
+    b    load_opcode
+load_dm_in:
+    adr  r0, Exec_DM_IN
+load_opcode:
     // TODO: check max program size
-    stm  r2!, {r0}  // PM[PP++] = opcode
-    b    Load_loop
-Load_done:
-    mov  r12, r2  // set end-of-program (start-of-data) address
+    adds r0, #1  // set execution mode to Thumb (for blx instruction in Exec_program)
+    stm  r2!, {r0}  // PM[PP++] = opcode executor address
+    b    load_loop
+load_done:
+    mov  r12, r2  // store end-of-program (start-of-data) address
 
-Reset_Program:
+Reset_program:
     // clear DM
     movs r0, #0x00
     ldr  r1, =DATAMEM_END
-    mov  r2, r12  // start-of-data address
+    mov  r3, r12  // start-of-data address
     clear_dm_loop:
-        stm  r2!, {r0}  // DM[r2++] = 0x00
-        cmp  r2, r1
+        stm  r3!, {r0}  // DM[DP++] = 0x00
+        cmp  r3, r1
         bne  clear_dm_loop
     ldr  r2, =PROGMEM_START  // reset PP
-    // TODO: reset DP
-    b    Main_prompt  // back to prompt
-
-Exec_Program:
-    UART_WaitWrite cmd_exec  // r0 == 'e'
+    mov  r3, r12  // reset DP
     b    Main_prompt
+
+Exec_program:
+    UART_WaitWrite cmd_exec  // r0 == 'e'
+exec_loop:
+    // check button
+    GPIO_GetButton
+    beq  Main_prompt  // break execution
+    // check PP
+    cmp  r2, r12
+    beq  Main_prompt  // end of program
+    // execute opcode
+    ldm  r2!, {r0}
+    blx  r0
+    b    exec_loop
+
+/* NOTE: alignment required for opcode executors (for adr instruction in Load_program) */
+
+.align
+
+Exec_DM_INC:  // opcode: +
+    bx   lr
+
+.align
+
+Exec_DM_DEC:  // opcode: -
+    bx   lr
+
+.align
+
+Exec_DP_INC:  // opcode: >
+    bx   lr
+
+.align
+
+Exec_DP_DEC:  // opcode: <
+    bx   lr
+
+.align
+
+Exec_PP_JFZ:  // opcode: [
+    bx   lr
+
+.align
+
+Exec_PP_JBN:  // opcode: ]
+    bx   lr
+
+.align
+
+Exec_DM_OUT:  // opcode: .
+    bx   lr
+
+.align
+
+Exec_DM_IN:  // opcode: ,
+    bx   lr
