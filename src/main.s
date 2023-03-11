@@ -5,7 +5,7 @@
 
 .include "defs.i"
 .include "gpio.i"  // used regs: r0, r1
-.include "uart.i"  // used regs: r0, r1, r3-r7
+.include "uart.i"  // used regs: r0, r1, r5-r7
 
 .global Main_Start
 
@@ -29,7 +29,7 @@ Main_loop:
     cmp  r0, #'l'
     beq  Load_Program
     cmp  r0, #'e'
-    beq  Exec_program
+    beq  Exec_Program
     // not a valid command, ignore
     b    Main_loop
 
@@ -80,6 +80,6 @@ Reset_Program:
     // TODO: reset DP
     b    Main_prompt  // back to prompt
 
-Exec_program:
+Exec_Program:
     UART_WaitWrite cmd_exec  // r0 == 'e'
     b    Main_prompt
