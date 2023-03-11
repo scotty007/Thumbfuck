@@ -71,11 +71,24 @@ load_dp_dec:
     adr  r0, Exec_DP_DEC
     b    load_opcode
 load_pp_jfz:
+    // TODO: check max program size (+ 4 bytes space + 4 bytes stack)
     adr  r0, Exec_PP_JFZ
-    b    load_opcode
+    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
+    stm  r2!, {r0}  // PM[PP++] = opcode executor address
+    adds r2, #4     // PP++ (make space for opcode address after the closing bracket)
+    push {r2}       // store opcode address after this opening bracket
+    b    load_loop
 load_pp_jbn:
+    // TODO: check for empty stack (missing opening bracket)
+    // TODO: check max program size (+ 4 bytes space)
     adr  r0, Exec_PP_JBN
-    b    load_opcode
+    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
+    stm  r2!, {r0}  // PM[PP++] = opcode executor address
+    pop  {r0}       // opcode address after the opening bracket
+    stm  r2!, {r0}  // PM[PP++] = opcode address after the opening bracket
+    subs r0, #4     // space address of the opening bracket
+    str  r2, [r0]   // PM[space] = opcode address after this closing bracket
+    b    load_loop
 load_dm_out:
     adr  r0, Exec_DM_OUT
     b    load_opcode
@@ -83,10 +96,11 @@ load_dm_inb:
     adr  r0, Exec_DM_INB
 load_opcode:
     // TODO: check max program size
-    adds r0, #1  // set execution mode to Thumb (for blx instruction in Exec_program)
+    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
     stm  r2!, {r0}  // PM[PP++] = opcode executor address
     b    load_loop
 load_done:
+    // TODO: check for non-empty stack (missing closing bracket(s))
     mov  r12, r2  // store end-of-program (start-of-data) address
 
 Reset_program:
@@ -95,7 +109,7 @@ Reset_program:
     ldr  r1, =DATAMEM_END
     mov  r3, r12  // start-of-data address
     clear_dm_loop:
-        stm  r3!, {r0}  // DM[DP++] = 0x00
+        stm  r3!, {r0}  // DM[DP++] = 0x00000000
         cmp  r3, r1
         bne  clear_dm_loop
     ldr  r2, =PROGMEM_START  // reset PP
@@ -146,12 +160,24 @@ Exec_DP_DEC:  // opcode: <
 
 .align
 Exec_PP_JFZ:  // opcode: [
-    // TODO
+    // PM[PP] == opcode address after the closing bracket
+    ldrb r0, [r3]
+    cmp  r0, #0x00
+    beq  exec_pp_jxx_jump
+    adds r2, #4  // PP++ (advance to opcode address after space)
     bx   lr
 
 .align
 Exec_PP_JBN:  // opcode: ]
-    // TODO
+    // PM[PP] == opcode address after the opening bracket
+    ldrb r0, [r3]
+    cmp  r0, #0x00
+    bne  exec_pp_jxx_jump
+    adds r2, #4  // PP++ (advance to opcode address after space)
+    bx   lr
+
+exec_pp_jxx_jump:
+    ldr  r2, [r2]  // PP = PM[PP]
     bx   lr
 
 .align
