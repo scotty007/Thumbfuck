@@ -41,21 +41,21 @@ load_loop:
     UART_CheckRead load_loop
     // check for Brainfuck opcode
     cmp  r0, #'+'
-    beq  load_dm_inc
+    beq  load_dm_inc  // DM[DP]++
     cmp  r0, #'-'
-    beq  load_dm_dec
+    beq  load_dm_dec  // DM[DP]--
     cmp  r0, #'>'
-    beq  load_dp_inc
+    beq  load_dp_inc  // DP++
     cmp  r0, #'<'
-    beq  load_dp_dec
+    beq  load_dp_dec  // DP--
     cmp  r0, #'['
-    beq  load_pp_jfz
+    beq  load_pp_jfz  // Jump Forward if DM[DP] is Zero
     cmp  r0, #']'
-    beq  load_pp_jbn
+    beq  load_pp_jbn  // Jump Back if DM[DP] in Not zero
     cmp  r0, #'.'
-    beq  load_dm_out
+    beq  load_dm_out  // write(DM[DP])
     cmp  r0, #','
-    beq  load_dm_in
+    beq  load_dm_inb  // DM[DP] = read() (blocking)
     // not an opcode, ignore
     b    load_loop
 load_dm_inc:
@@ -79,8 +79,8 @@ load_pp_jbn:
 load_dm_out:
     adr  r0, Exec_DM_OUT
     b    load_opcode
-load_dm_in:
-    adr  r0, Exec_DM_IN
+load_dm_inb:
+    adr  r0, Exec_DM_INB
 load_opcode:
     // TODO: check max program size
     adds r0, #1  // set execution mode to Thumb (for blx instruction in Exec_program)
@@ -119,41 +119,60 @@ exec_loop:
 /* NOTE: alignment required for opcode executors (for adr instruction in Load_program) */
 
 .align
-
 Exec_DM_INC:  // opcode: +
+    ldrb r0, [r3]
+    adds r0, #1
+    strb r0, [r3]
     bx   lr
 
 .align
-
 Exec_DM_DEC:  // opcode: -
+    ldrb r0, [r3]
+    subs r0, #1
+    strb r0, [r3]
     bx   lr
 
 .align
-
 Exec_DP_INC:  // opcode: >
+    // TODO: check for DM overflow
+    adds r3, #1
     bx   lr
 
 .align
-
 Exec_DP_DEC:  // opcode: <
+    // TODO: check for DM underflow
+    subs r3, #1
     bx   lr
 
 .align
-
 Exec_PP_JFZ:  // opcode: [
+    // TODO
     bx   lr
 
 .align
-
 Exec_PP_JBN:  // opcode: ]
+    // TODO
     bx   lr
 
 .align
-
 Exec_DM_OUT:  // opcode: .
+    ldrb r0, [r3]
+    UART_WaitWrite exec_dm_out
     bx   lr
 
 .align
-
-Exec_DM_IN:  // opcode: ,
+Exec_DM_INB:  // opcode: ,
+    movs r0, #','
+    UART_WaitWrite exec_dm_inb
+exec_dm_inb_loop:
+    // check button
+    GPIO_GetButton
+    beq exec_dm_inb_break  // break execution
+    // check for input byte
+    UART_CheckRead exec_dm_inb_loop
+    // got it
+    strb r0, [r3]
     bx   lr
+exec_dm_inb_break:
+    subs r2, #4  // set PP back to this opcode
+    b    Main_prompt
