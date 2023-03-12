@@ -28,6 +28,8 @@ main_loop:
     beq  Load_program
     cmp  r0, #'e'
     beq  Exec_program
+    cmp  r0, #'r'
+    beq  Reset_program
     // not a valid command, ignore
     b    main_loop
 
@@ -98,9 +100,11 @@ load_opcode:
     b    load_loop
 load_done:
     // TODO: check for non-empty stack (missing closing bracket(s))
-    mov  r12, r2  // store end-of-program (start-of-data) address
+    mov  r12, r2   // store end-of-program (start-of-data) address
+    movs r0, #'r'  // prepare for Reset_program
 
 Reset_program:
+    UART_WaitWrite cmd_reset  // r0 == 'r'
     // clear DM
     movs r0, #0x00
     ldr  r1, =DATAMEM_END
