@@ -73,7 +73,6 @@ load_dp_dec:
 load_pp_jfz:
     // TODO: check max program size (+ 4 bytes space + 4 bytes stack)
     adr  r0, Exec_PP_JFZ
-    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
     stm  r2!, {r0}  // PM[PP++] = opcode executor address
     adds r2, #4     // PP++ (make space for opcode address after the closing bracket)
     push {r2}       // store opcode address after this opening bracket
@@ -82,7 +81,6 @@ load_pp_jbn:
     // TODO: check for empty stack (missing opening bracket)
     // TODO: check max program size (+ 4 bytes space)
     adr  r0, Exec_PP_JBN
-    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
     stm  r2!, {r0}  // PM[PP++] = opcode executor address
     pop  {r0}       // opcode address after the opening bracket
     stm  r2!, {r0}  // PM[PP++] = opcode address after the opening bracket
@@ -96,7 +94,6 @@ load_dm_inb:
     adr  r0, Exec_DM_INB
 load_opcode:
     // TODO: check max program size
-    adds r0, #1     // set execution mode to Thumb (for blx instruction in Exec_program)
     stm  r2!, {r0}  // PM[PP++] = opcode executor address
     b    load_loop
 load_done:
@@ -118,7 +115,7 @@ Reset_program:
 
 Exec_program:
     UART_WaitWrite cmd_exec  // r0 == 'e'
-exec_loop:
+Exec_loop:
     // check button
     GPIO_GetButton
     beq  Main_prompt  // break execution
@@ -126,9 +123,8 @@ exec_loop:
     cmp  r2, r12
     beq  Main_prompt  // end of program
     // execute opcode
-    ldm  r2!, {r0}
-    blx  r0
-    b    exec_loop
+    ldm  r2!, {r0}  // load executor address, PP++
+    mov  pc, r0
 
 /* NOTE: alignment required for opcode executors (for adr instruction in Load_program) */
 
@@ -137,26 +133,26 @@ Exec_DM_INC:  // opcode: +
     ldrb r0, [r3]
     adds r0, #1
     strb r0, [r3]
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_DM_DEC:  // opcode: -
     ldrb r0, [r3]
     subs r0, #1
     strb r0, [r3]
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_DP_INC:  // opcode: >
     // TODO: check for DM overflow
     adds r3, #1
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_DP_DEC:  // opcode: <
     // TODO: check for DM underflow
     subs r3, #1
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_PP_JFZ:  // opcode: [
@@ -165,7 +161,7 @@ Exec_PP_JFZ:  // opcode: [
     cmp  r0, #0x00
     beq  exec_pp_jxx_jump
     adds r2, #4  // PP++ (advance to opcode address after space)
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_PP_JBN:  // opcode: ]
@@ -174,17 +170,17 @@ Exec_PP_JBN:  // opcode: ]
     cmp  r0, #0x00
     bne  exec_pp_jxx_jump
     adds r2, #4  // PP++ (advance to opcode address after space)
-    bx   lr
+    b    Exec_loop
 
 exec_pp_jxx_jump:
     ldr  r2, [r2]  // PP = PM[PP]
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_DM_OUT:  // opcode: .
     ldrb r0, [r3]
     UART_WaitWrite exec_dm_out
-    bx   lr
+    b    Exec_loop
 
 .align
 Exec_DM_INB:  // opcode: ,
@@ -198,7 +194,7 @@ exec_dm_inb_loop:
     UART_CheckRead exec_dm_inb_loop
     // got it
     strb r0, [r3]
-    bx   lr
+    b    Exec_loop
 exec_dm_inb_break:
     subs r2, #4  // set PP back to this opcode
     b    Main_prompt
