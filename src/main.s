@@ -21,8 +21,13 @@ Main_prompt:
     UART_WaitWrite prompt_1
     movs r0, #'?'
     UART_WaitWrite prompt_2
+    GPIO_SetLedOff
 main_loop:
     UART_CheckRead main_loop
+    // byte received
+    mov  r11, r0
+    GPIO_SetLedOn
+    mov  r0, r11
     // check for valid command
     cmp  r0, #'l'
     beq  Load_program
@@ -31,6 +36,7 @@ main_loop:
     cmp  r0, #'r'
     beq  Reset_program
     // not a valid command, ignore
+    GPIO_SetLedOff
     b    main_loop
 
 Load_program:
