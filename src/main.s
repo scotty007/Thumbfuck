@@ -64,8 +64,10 @@ load_loop:
     beq  load_dm_out  // write(DM[DP])
     cmp  r0, #','
     beq  load_dm_inb  // DM[DP] = read() (blocking)
-    // not an opcode, ignore
-    b    load_loop
+    // not an opcode
+    cmp  r0, 0x00     // 'EOF' (ASCII 'NUL')
+    beq  load_done    // end loading
+    b    load_loop    // ignore
 load_dm_inc:
     adr  r0, Exec_DM_INC
     b    load_opcode
