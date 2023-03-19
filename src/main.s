@@ -9,6 +9,10 @@
 
 .global Main_Start
 
+.equ VERSION_MAJOR , '0'
+.equ VERSION_MINOR , '1'
+.equ VERSION_MICRO , '0'
+
 .equ STACK_RESERVE , 40  // 32 + up to 7 alignment (for exception/interrupt handlers)
 .equ PROGMEM_START , SRAM_BASE
 .equ DATAMEM_END   , SRAM_END - STACK_RESERVE
@@ -18,12 +22,27 @@ DP  .req r3   // Data Pointer
 EOP .req r11  // End Of Program memory (start of data memory)
 EOD .req r12  // End Of Data memory (constant)
 
+GREETING:
+.byte 'T', 'F', VERSION_MAJOR, VERSION_MINOR, VERSION_MICRO, 0x00
+
 Main_Start:
     UART_LoadRegs
+    // print a short greeting
+    ldr  r2, =GREETING
+main_greeting_loop:
+    ldrb r0, [r2]
+    cmp  r0, #0x00
+    beq  main_greeting_done
+    UART_WaitWrite greeting
+    adds r2, #1
+    b    main_greeting_loop
+main_greeting_done:
     // init EOD
     ldr  r0, =DATAMEM_END
     subs r0, #1  // -1 for faster DM overflow checks
     mov  EOD, r0
+    UART_DropRead  // drop bytes received during startup
+
 Main_reset:
     ldr  PP, =PROGMEM_START  // reset PP
     mov  EOP, PP  // reset EOP
@@ -76,7 +95,7 @@ load_loop:
     cmp  r0, #','
     beq  load_dm_inb  // DM[DP] = read() (blocking)
     // not an opcode
-    cmp  r0, 0x00     // 'EOF' (ASCII 'NUL')
+    cmp  r0, #0x00    // 'EOF' (ASCII 'NUL')
     beq  load_done    // end loading
     b    load_loop    // ignore
 load_dm_inc:
