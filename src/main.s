@@ -13,14 +13,20 @@
 .equ PROGMEM_START , SRAM_BASE
 .equ DATAMEM_END   , SRAM_END - STACK_RESERVE
 
+PP  .req r2   // Program Pointer
+DP  .req r3   // Data Pointer
+EOP .req r11  // End Of Program memory (start of data memory)
+EOD .req r12  // End Of Data memory (constant)
+
 Main_Start:
     UART_LoadRegs
+    // init EOD
     ldr  r0, =DATAMEM_END
-    subs r0, #1
-    mov  r12, r0
+    subs r0, #1  // -1 for faster DM overflow checks
+    mov  EOD, r0
 Main_reset:
-    ldr  r2, =PROGMEM_START  // reset PP
-    mov  r11, r2  // reset end-of-program (start-of-data) address
+    ldr  PP, =PROGMEM_START  // reset PP
+    mov  EOP, PP  // reset EOP
 Main_prompt:
     movs r0, #'\n'
     UART_WaitWrite prompt_1
@@ -46,7 +52,7 @@ main_loop:
 
 Load_program:
     UART_WaitWrite cmd_load  // r0 == 'l'
-    ldr  r2, =PROGMEM_START  // reset PP
+    ldr  PP, =PROGMEM_START  // reset PP
 load_loop:
     // check button
     GPIO_GetButton
@@ -87,15 +93,15 @@ load_dp_dec:
     b    load_opcode
 load_pp_jfz:
     // check max program size (+ 4 bytes space + 4 bytes stack)
-    adds r2, STACK_RESERVE + 8
-    cmp  sp, r2
+    adds PP, STACK_RESERVE + 8
+    cmp  sp, PP
     ble  Error_load_overflow
-    subs r2, STACK_RESERVE + 8
+    subs PP, STACK_RESERVE + 8
     // size OK
     adr  r0, Exec_pp_jfz
-    stm  r2!, {r0}  // PM[PP++] = opcode executor address
-    adds r2, #4     // PP++ (make space for opcode address after the closing bracket)
-    push {r2}       // store opcode address after this opening bracket
+    stm  PP!, {r0}  // PM[PP++] = opcode executor address
+    adds PP, #4     // PP++ (make space for opcode address after the closing bracket)
+    push {PP}       // store opcode address after this opening bracket
     b    load_loop
 load_pp_jbn:
     // check for empty stack (missing opening bracket)
@@ -104,17 +110,17 @@ load_pp_jbn:
     beq  Error_load_opening
     // opening bracket OK
     // check max program size (+ 4 bytes space)
-    adds r2, STACK_RESERVE + 4
-    cmp  sp, r2
+    adds PP, STACK_RESERVE + 4
+    cmp  sp, PP
     ble  Error_load_overflow
-    subs r2, STACK_RESERVE + 4
+    subs PP, STACK_RESERVE + 4
     // size OK
     adr  r0, Exec_pp_jbn
-    stm  r2!, {r0}  // PM[PP++] = opcode executor address
+    stm  PP!, {r0}  // PM[PP++] = opcode executor address
     pop  {r0}       // opcode address after the opening bracket
-    stm  r2!, {r0}  // PM[PP++] = opcode address after the opening bracket
+    stm  PP!, {r0}  // PM[PP++] = opcode address after the opening bracket
     subs r0, #4     // space address of the opening bracket
-    str  r2, [r0]   // PM[space] = opcode address after this closing bracket
+    str  PP, [r0]   // PM[space] = opcode address after this closing bracket
     b    load_loop
 load_dm_out:
     adr  r0, Exec_dm_out
@@ -123,12 +129,12 @@ load_dm_inb:
     adr  r0, Exec_dm_inb
 load_opcode:
     // check max program size
-    adds r2, STACK_RESERVE
-    cmp  sp, r2
+    adds PP, STACK_RESERVE
+    cmp  sp, PP
     ble  Error_load_overflow
-    subs r2, STACK_RESERVE
+    subs PP, STACK_RESERVE
     // size OK
-    stm  r2!, {r0}  // PM[PP++] = opcode executor address
+    stm  PP!, {r0}  // PM[PP++] = opcode executor address
     b    load_loop
 load_done:
     // check for non-empty stack (missing closing bracket(s))
@@ -136,7 +142,7 @@ load_done:
     cmp  sp, r0
     bne  Error_load_closing
     // brackets balanced
-    mov  r11, r2   // store end-of-program (start-of-data) address
+    mov  EOP, PP   // store EOP address
     movs r0, #'r'  // prepare for Reset_program
 
 Reset_program:
@@ -144,13 +150,13 @@ Reset_program:
     // clear DM
     movs r0, #0x00
     ldr  r1, =DATAMEM_END
-    mov  r3, r11  // start-of-data address
+    mov  DP, EOP  // start of data address
     clear_dm_loop:
-        stm  r3!, {r0}  // DM[DP++] = 0x00000000
-        cmp  r3, r1
+        stm  DP!, {r0}  // DM[DP++] = 0x00000000
+        cmp  DP, r1
         bne  clear_dm_loop
-    ldr  r2, =PROGMEM_START  // reset PP
-    mov  r3, r11  // reset DP
+    ldr  PP, =PROGMEM_START  // reset PP
+    mov  DP, EOP   // reset DP
     UART_DropRead  // drop bytes received during reset
     b    Main_prompt
 
@@ -164,11 +170,11 @@ Exec_loop:
 //    beq  Main_prompt  // break execution
     beq  exec_done  // break execution
     // check PP
-    cmp  r2, r11
+    cmp  PP, EOP
 //    beq  Main_prompt  // end of program
     beq  exec_done  // end of program
     // execute opcode
-    ldm  r2!, {r0}  // load executor address, PP++
+    ldm  PP!, {r0}  // load executor address, PP++
     mov  pc, r0
 exec_done:  // intermediate jump, Main_prompt out of range for beq instruction
     b    Main_prompt
@@ -177,61 +183,61 @@ exec_done:  // intermediate jump, Main_prompt out of range for beq instruction
 
 .align
 Exec_dm_inc:  // opcode: +
-    ldrb r0, [r3]
+    ldrb r0, [DP]
     adds r0, #1
-    strb r0, [r3]
+    strb r0, [DP]
     b    Exec_loop
 
 .align
 Exec_dm_dec:  // opcode: -
-    ldrb r0, [r3]
+    ldrb r0, [DP]
     subs r0, #1
-    strb r0, [r3]
+    strb r0, [DP]
     b    Exec_loop
 
 .align
 Exec_dp_inc:  // opcode: >
     // check for DM overflow
-    cmp  r3, r12
+    cmp  DP, EOD
     beq  Error_dp_inc
     // DP ok, increment it
-    adds r3, #1
+    adds DP, #1
     b    Exec_loop
 
 .align
 Exec_dp_dec:  // opcode: <
     // check for DM underflow
-    cmp  r3, r11
+    cmp  DP, EOP
     beq  Error_dp_dec
     // DP ok, decrement it
-    subs r3, #1
+    subs DP, #1
     b    Exec_loop
 
 .align
 Exec_pp_jfz:  // opcode: [
     // PM[PP] == opcode address after the closing bracket
-    ldrb r0, [r3]
+    ldrb r0, [DP]
     cmp  r0, #0x00
     beq  exec_pp_jxx_jump
-    adds r2, #4  // PP++ (advance to opcode address after space)
+    adds PP, #4  // PP++ (advance to opcode address after space)
     b    Exec_loop
 
 .align
 Exec_pp_jbn:  // opcode: ]
     // PM[PP] == opcode address after the opening bracket
-    ldrb r0, [r3]
+    ldrb r0, [DP]
     cmp  r0, #0x00
     bne  exec_pp_jxx_jump
-    adds r2, #4  // PP++ (advance to opcode address after space)
+    adds PP, #4  // PP++ (advance to opcode address after space)
     b    Exec_loop
 
 exec_pp_jxx_jump:
-    ldr  r2, [r2]  // PP = PM[PP]
+    ldr  PP, [PP]  // PP = PM[PP]
     b    Exec_loop
 
 .align
 Exec_dm_out:  // opcode: .
-    ldrb r0, [r3]
+    ldrb r0, [DP]
     UART_WaitWrite exec_dm_out
     b    Exec_loop
 
@@ -246,10 +252,10 @@ exec_dm_inb_loop:
     // check for input byte
     UART_CheckRead exec_dm_inb_loop
     // got it
-    strb r0, [r3]
+    strb r0, [DP]
     b    Exec_loop
 exec_dm_inb_break:
-    subs r2, #4  // set PP back to this opcode
+    subs PP, #4  // set PP back to this opcode
     b    Main_prompt
 
 Error_load_overflow:  // PM overflow (while loading)
@@ -279,6 +285,6 @@ Error_dp_dec:  // DM underflow
     movs r0, #'<'
 
 error_exec_return:
-    subs r2, #4  // set PP back to the failed opcode
+    subs PP, #4  // set PP back to the failed opcode
     UART_WaitWrite error_exec
     b    Main_prompt
