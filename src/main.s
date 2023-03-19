@@ -151,12 +151,14 @@ Reset_program:
         bne  clear_dm_loop
     ldr  r2, =PROGMEM_START  // reset PP
     mov  r3, r11  // reset DP
+    UART_DropRead  // drop bytes received during reset
     b    Main_prompt
 
 Exec_program:
     UART_WaitWrite cmd_exec  // r0 == 'e'
 Exec_loop:
-    // TODO: drop all received bytes until program end (except for dm_inb) ?
+    // drop all received bytes until program end (except while in Exec_dm_inb)
+    UART_DropRead
     // check button
     GPIO_GetButton
 //    beq  Main_prompt  // break execution

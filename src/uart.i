@@ -13,6 +13,11 @@
     ldr  r0, [r5, #(USART2_RDR - USART2_BASE)]
 .endm
 
+.macro UART_DropRead
+    // read USART2_RDR (w/o check, resets USART2_ISR.RXNE)
+    ldr  r0, [r5, #(USART2_RDR - USART2_BASE)]
+.endm
+
 .macro UART_WaitWrite label
     uart_wait_txe_loop_\label:
         // check TX ready state

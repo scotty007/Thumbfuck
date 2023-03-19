@@ -28,6 +28,7 @@
 // APB peripherals
 .equ    USART2_BASE             , APBPERIPH_BASE + 0x00004400
 .equ    USART2_CR1              , USART2_BASE + 0x00                    // USART2 control register 1
+.equ    USART2_CR3              , USART2_BASE + 0x08                    // USART2 control register 3
 .equ    USART2_BRR              , USART2_BASE + 0x0c                    // USART2 baud rate register
 .equ    USART2_ISR              , USART2_BASE + 0x1c                    // USART2 interrupt and status register
 .equ    USART2_RDR              , USART2_BASE + 0x24                    // USART2 receive data register
@@ -76,5 +77,6 @@
 .equ    USARTx_CR1.UE           , 0b1 << 0                              // USART enable
 .equ    USARTx_CR1.RE           , 0b1 << 2                              // receiver enable
 .equ    USARTx_CR1.TE           , 0b1 << 3                              // transmitter enable
+.equ    USARTx_CR3.OVRDIS       , 0b1 << 12                             // overrun disable
 .equ    USARTx_ISR.RXNE         , 0b1 << 5                              // read data register not empty
 .equ    USARTx_ISR.TXE          , 0b1 << 7                              // transmit data register empty
