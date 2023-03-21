@@ -59,18 +59,18 @@ main_loop:
     GPIO_SetLedOn
     mov  r0, r8
     // check for valid command
-    cmp  r0, #'l'
+    cmp  r0, #':'
     beq  Load_program
-    cmp  r0, #'e'
+    cmp  r0, #'('
     beq  Exec_program
-    cmp  r0, #'r'
+    cmp  r0, #')'
     beq  Reset_program
     // not a valid command, ignore
     GPIO_SetLedOff
     b    main_loop
 
 Load_program:
-    UART_WaitWrite cmd_load  // r0 == 'l'
+    UART_WaitWrite cmd_load  // r0 == ':'
     ldr  PP, =PROGMEM_START  // reset PP
 load_loop:
     // check button
@@ -162,10 +162,10 @@ load_done:
     bne  Error_load_closing
     // brackets balanced
     mov  EOP, PP   // store EOP address
-    movs r0, #'r'  // prepare for Reset_program
+    movs r0, #')'  // prepare for Reset_program
 
 Reset_program:
-    UART_WaitWrite cmd_reset  // r0 == 'r'
+    UART_WaitWrite cmd_reset  // r0 == ')'
     // clear DM
     movs r0, #0x00
     ldr  r1, =DATAMEM_END
@@ -180,7 +180,7 @@ Reset_program:
     b    Main_prompt
 
 Exec_program:
-    UART_WaitWrite cmd_exec  // r0 == 'e'
+    UART_WaitWrite cmd_exec  // r0 == '('
 Exec_loop:
     // drop all received bytes until program end (except while in Exec_dm_inb)
     UART_DropRead
