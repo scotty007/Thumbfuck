@@ -7,7 +7,9 @@
 .include "gpio.i"  // used regs: r0, r1
 .include "uart.i"  // used regs: r0, r1, r5-r7
 
-.global Main_Start
+.global Main_Start   // for boot.s
+.global Load_Opcode  // for logo.s
+.global Load_Done    // for logo.s
 
 .equ VERSION_MAJOR , '0'
 .equ VERSION_MINOR , '1'
@@ -25,6 +27,7 @@ EOD .req r12  // End Of Data memory (constant)
 GREETING:
 .byte 'T', 'F', VERSION_MAJOR, VERSION_MINOR, VERSION_MICRO, 0x00
 
+.align
 Main_Start:
     UART_LoadRegs
     // print a short greeting
@@ -41,7 +44,8 @@ main_greeting_done:
     ldr  r0, =DATAMEM_END
     subs r0, #1  // -1 for faster DM overflow checks
     mov  EOD, r0
-    UART_DropRead  // drop bytes received during startup
+    ldr  PP, =PROGMEM_START  // reset PP
+    b    Logo_Load  // load LOGO BF program, reset program, go to Main_prompt
 
 Main_reset:
     ldr  PP, =PROGMEM_START  // reset PP
@@ -71,12 +75,16 @@ main_loop:
 
 Load_program:
     UART_WaitWrite cmd_load  // r0 == ':'
+    mov  lr, pc  // set Load_Opcode "return" address to load_loop
     ldr  PP, =PROGMEM_START  // reset PP
 load_loop:
     // check button
     GPIO_GetButton
-    beq  load_done  // end loading
+    beq  Load_Done  // end loading
     UART_CheckRead load_loop
+    cmp  r0, #0x00  // 'EOF' (ASCII 'NUL')
+    beq  Load_Done  // end loading
+Load_Opcode:  // used from logo.s, too
     // check for Brainfuck opcode
     cmp  r0, #'+'
     beq  load_dm_inc  // DM[DP]++
@@ -94,22 +102,20 @@ load_loop:
     beq  load_dm_out  // write(DM[DP])
     cmp  r0, #','
     beq  load_dm_inb  // DM[DP] = read() (blocking)
-    // not an opcode
-    cmp  r0, #0x00    // 'EOF' (ASCII 'NUL')
-    beq  load_done    // end loading
-    b    load_loop    // ignore
+    // not an opcode, ignore
+    mov  pc, lr
 load_dm_inc:
     adr  r0, Exec_dm_inc
-    b    load_opcode
+    b    load_opexec
 load_dm_dec:
     adr  r0, Exec_dm_dec
-    b    load_opcode
+    b    load_opexec
 load_dp_inc:
     adr  r0, Exec_dp_inc
-    b    load_opcode
+    b    load_opexec
 load_dp_dec:
     adr  r0, Exec_dp_dec
-    b    load_opcode
+    b    load_opexec
 load_pp_jfz:
     // check max program size (+ 4 bytes space + 4 bytes stack)
     adds PP, STACK_RESERVE + 8
@@ -121,7 +127,7 @@ load_pp_jfz:
     stm  PP!, {r0}  // PM[PP++] = opcode executor address
     adds PP, #4     // PP++ (make space for opcode address after the closing bracket)
     push {PP}       // store opcode address after this opening bracket
-    b    load_loop
+    mov  pc, lr
 load_pp_jbn:
     // check for empty stack (missing opening bracket)
     ldr  r0, =SRAM_END
@@ -140,13 +146,13 @@ load_pp_jbn:
     stm  PP!, {r0}  // PM[PP++] = opcode address after the opening bracket
     subs r0, #4     // space address of the opening bracket
     str  PP, [r0]   // PM[space] = opcode address after this closing bracket
-    b    load_loop
+    mov  pc, lr
 load_dm_out:
     adr  r0, Exec_dm_out
-    b    load_opcode
+    b    load_opexec
 load_dm_inb:
     adr  r0, Exec_dm_inb
-load_opcode:
+load_opexec:
     // check max program size
     adds PP, STACK_RESERVE
     cmp  sp, PP
@@ -154,18 +160,19 @@ load_opcode:
     subs PP, STACK_RESERVE
     // size OK
     stm  PP!, {r0}  // PM[PP++] = opcode executor address
-    b    load_loop
-load_done:
+    mov  pc, lr
+Load_Done:  // used from logo.s, too
     // check for non-empty stack (missing closing bracket(s))
     ldr  r0, =SRAM_END
     cmp  sp, r0
     bne  Error_load_closing
     // brackets balanced
     mov  EOP, PP   // store EOP address
-    movs r0, #')'  // prepare for Reset_program
+    b    Reset_noprint
 
 Reset_program:
     UART_WaitWrite cmd_reset  // r0 == ')'
+Reset_noprint:
     // clear DM
     movs r0, #0x00
     ldr  r1, =DATAMEM_END
