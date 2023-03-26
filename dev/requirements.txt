@@ -1,0 +1,2 @@
+# for prime.py:
+pyserial>=3.4
