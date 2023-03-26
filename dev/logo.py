@@ -101,7 +101,7 @@ line 9 (2nd part)
 <<<..                       2*out(a)                                DP=a    a='\n'
 """
 
-###  quick'n'dirty interpreter ###
+### quick'n'dirty interpreter ###
 
 PM = [c for c in PROG if c in ('+', '-', '<', '>', ',', '.', '[', ']', '#')]
 DM = [0x00] * 16
