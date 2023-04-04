@@ -118,10 +118,10 @@ load_dp_dec:
     b    load_opexec
 load_pp_jfz:
     // check max program size (+ 4 bytes space + 4 bytes stack)
-    adds PP, STACK_RESERVE + 8
+    adds PP, #(STACK_RESERVE + 8)
     cmp  sp, PP
     ble  Error_load_overflow
-    subs PP, STACK_RESERVE + 8
+    subs PP, #(STACK_RESERVE + 8)
     // size OK
     adr  r0, Exec_pp_jfz
     stm  PP!, {r0}  // PM[PP++] = opcode executor address
@@ -135,10 +135,10 @@ load_pp_jbn:
     beq  Error_load_opening
     // opening bracket OK
     // check max program size (+ 4 bytes space)
-    adds PP, STACK_RESERVE + 4
+    adds PP, #(STACK_RESERVE + 4)
     cmp  sp, PP
     ble  Error_load_overflow
-    subs PP, STACK_RESERVE + 4
+    subs PP, #(STACK_RESERVE + 4)
     // size OK
     adr  r0, Exec_pp_jbn
     stm  PP!, {r0}  // PM[PP++] = opcode executor address
@@ -154,10 +154,10 @@ load_dm_inb:
     adr  r0, Exec_dm_inb
 load_opexec:
     // check max program size
-    adds PP, STACK_RESERVE
+    adds PP, #STACK_RESERVE
     cmp  sp, PP
     ble  Error_load_overflow
-    subs PP, STACK_RESERVE
+    subs PP, #STACK_RESERVE
     // size OK
     stm  PP!, {r0}  // PM[PP++] = opcode executor address
     mov  pc, lr
