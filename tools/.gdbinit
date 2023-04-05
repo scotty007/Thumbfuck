@@ -124,6 +124,7 @@ class MemoryTF(Dashboard.Module):
         'Exec_pp_jbn': ']',
         'Exec_dm_out': '.',
         'Exec_dm_inb': ',',
+        'Main_prompt': '#',
     }
 
     def __init__(self):

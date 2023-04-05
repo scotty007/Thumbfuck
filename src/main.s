@@ -13,7 +13,7 @@
 
 .equ VERSION_MAJOR , '0'
 .equ VERSION_MINOR , '1'
-.equ VERSION_MICRO , '0'
+.equ VERSION_MICRO , '1'
 
 .equ STACK_RESERVE , 40  // 32 + up to 7 alignment (for exception/interrupt handlers)
 .equ PROGMEM_START , SRAM_BASE
@@ -23,6 +23,9 @@ PP  .req r2   // Program Pointer
 DP  .req r3   // Data Pointer
 EOP .req r11  // End Of Program memory (start of data memory)
 EOD .req r12  // End Of Data memory (constant)
+CFG .req r4   // config flags
+
+.equ CFG_FLAG_BP , 0x01  // breakpoints enabled
 
 GREETING:
 .byte 'T', 'F', VERSION_MAJOR, VERSION_MINOR, VERSION_MICRO, 0x00
@@ -40,12 +43,14 @@ main_greeting_loop:
     adds r2, #1
     b    main_greeting_loop
 main_greeting_done:
-    // init EOD
+    // init EOD, CFG & PP
     ldr  r0, =DATAMEM_END
     subs r0, #1  // -1 for faster DM overflow checks
     mov  EOD, r0
+    movs CFG, #0x00  // disable breakpoints
     ldr  PP, =PROGMEM_START  // reset PP
-    b    Logo_Load  // load LOGO BF program, reset program, go to Main_prompt
+    // load LOGO BF program, reset program, go to Main_prompt
+    b    Logo_Load
 
 Main_reset:
     ldr  PP, =PROGMEM_START  // reset PP
@@ -69,9 +74,22 @@ main_loop:
     beq  Exec_program
     cmp  r0, #')'
     beq  Reset_program
+    cmp  r0, #'#'
+    beq  Enable_breakpoints
+    cmp  r0, #'='
+    beq  Disable_breakpoints
     // not a valid command, ignore
     GPIO_SetLedOff
     b    main_loop
+
+Enable_breakpoints:
+    movs CFG, #CFG_FLAG_BP
+    b    config_done
+Disable_breakpoints:
+    movs CFG, #0x00
+config_done:
+    UART_WaitWrite cmd_config  // r0 == '#' | '='
+    b    Main_prompt
 
 Load_program:
     UART_WaitWrite cmd_load  // r0 == ':'
@@ -102,6 +120,9 @@ Load_Opcode:  // used from logo.s, too
     beq  load_dm_out  // write(DM[DP])
     cmp  r0, #','
     beq  load_dm_inb  // DM[DP] = read() (blocking)
+    // not a Brainfuck opcode, check for breakpoint opcode
+    cmp  r0, #'#'
+    beq  load_break
     // not an opcode, ignore
     mov  pc, lr
 load_dm_inc:
@@ -152,6 +173,12 @@ load_dm_out:
     b    load_opexec
 load_dm_inb:
     adr  r0, Exec_dm_inb
+    b    load_opexec
+load_break:
+    ldr  r0, =Main_prompt
+    cmp  CFG, #CFG_FLAG_BP
+    beq  load_opexec  // breakpoints enabled
+    mov  pc, lr       // breakpoints disabled, ignore
 load_opexec:
     // check max program size
     adds PP, #STACK_RESERVE

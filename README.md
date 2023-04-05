@@ -52,7 +52,7 @@ Connect the board and open your favorite serial terminal program (115200-8N1).
 Press the on-board RESET button. You should find yourself at the *TF* command
 prompt (see below).
 
-**NOTE:** *TF* and almost all *BF* programs out there use a single`LF` (`0x0A`,
+**NOTE:** *TF* and almost all *BF* programs out there use a single `LF` (`0x0A`,
 '`\n`') character for line breaks. Configure your terminal program accordingly.
 
 ### Commands
@@ -62,6 +62,8 @@ At the command prompt (a '`-`' character) *TF* waits for the following commands:
 - '`:`' - *Load* program
 - '`(`' - *Run* (loaded) program
 - '`)`' - *Reset* program (to re-run it)
+- '`#`' - *Enable* breakpoints
+- '`=`' - *Disable* breakpoints
 
 Each accepted command character is echoed back, all other input is ignored.
 The on-board USER LED is lit during command execution.
@@ -85,15 +87,23 @@ When the running program reaches a read-char *BF* operation (`,`), it outputs an
 input prompt character ('`,`') and waits until a byte has been received.
 All unexpected input is discarded.
 
+### Extensions
+
+*TF* accepts the pseudo operation `#` in *BF* programs when breakpoints are
+enabled. The character is treated as comment and ignored otherwise.
+This operation causes *TF* to pause the running program at the next operation
+and return to the command prompt.
+Enabling/disabling breakpoints doesn't affect the loaded program.
+
 ### Errors
 
 When an error occurs, *TF* outputs the following error characters:
 
-While loading a program or at end of loading:
+While loading a program:
 
 - '`+`' - *PM* overflow
 - '`[`' - unbalanced brackets (missing opening)
-- '`]`' - unbalanced brackets (missing closing)
+- '`]`' - unbalanced brackets (missing closing, at end of loading)
 
 While running a program:
 
@@ -114,6 +124,19 @@ Then sit back and watch ...
 
     -:
     -(Primes up to: ,,,2 3 5 7 11 13 17 19 23 29 31 37 41
+
+## Changelog
+
+### TF011
+
+- new pseudo *BF* operation: `#`
+- new *TF* commands: `#` `=`
+
+### TF010 (initial version)
+
+- all *BF* operations: `+` `-` `<` `>` `[` `]` `.` `,`
+- *TF* commands: `:` `(` `)`
+- initial LOGO *BF* program
 
 ## License
 
